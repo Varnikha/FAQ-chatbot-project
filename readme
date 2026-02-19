@@ -1,0 +1,44 @@
+🤖 FAQ Chatbot
+A simple FAQ chatbot built with Python and Streamlit that answers predefined questions about working hours, location, contact details, and more.
+
+📁 Project Structure
+faq_chatbot/
+├── app.py            # Main chatbot application
+├── requirements.txt  # Python dependencies
+└── README.md         # Project documentation
+
+✅ Features
+
+Answers 12 predefined FAQ questions
+Works in a case-insensitive manner
+Supports partial question matching
+Shows a fallback message if no answer is found
+Clean chat-style UI using Streamlit
+Maintains chat history during the session
+
+
+❓ Sample Questions You Can Ask
+QuestionWhat are your working hours?Where are you located?What is your contact number?What is your email address?Do you offer customer support?What services do you offer?How can I place an order?What is your return policy?Do you offer free shipping?How long does delivery take?Do you have a physical store?What payment methods do you accept?
+
+🚀 How to Run
+1. Install Dependencies
+bashpip install -r requirements.txt
+2. Run the App
+bashstreamlit run app.py
+3. Open in Browser
+Streamlit will automatically open the app at:
+http://localhost:8501
+
+🛠️ How It Works
+
+FAQ Dictionary — All questions and answers are stored in a Python dictionary.
+User Input — The user types a question in the chat box.
+Matching Logic — The input is converted to lowercase and matched against the FAQ keys (exact match first, then partial match).
+Response — The matching answer is displayed. If no match is found, a friendly fallback message is shown.
+
+
+📦 Technologies Used
+
+Python 3.x
+Streamlit — For the web-based chat UI
+Dictionary — For storing FAQ data
