@@ -1,0 +1,5 @@
+date,time,question,match_type
+2026-02-25,10:18:40,hi',greeting
+2026-02-25,10:18:52,What is your contact number?,exact
+2026-02-25,10:19:00,Do you ship internationally?,exact
+2026-02-25,10:19:08,Do you offer discounts?,exact
