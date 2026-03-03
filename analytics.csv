@@ -3,3 +3,21 @@ date,time,question,match_type
 2026-02-25,10:18:52,What is your contact number?,exact
 2026-02-25,10:19:00,Do you ship internationally?,exact
 2026-02-25,10:19:08,Do you offer discounts?,exact
+2026-02-25,11:10:20,what is your name ?,fuzzy
+2026-02-25,11:14:08,"what is your name?
+",fuzzy
+2026-02-25,11:14:17,"what is your name?
+",fuzzy
+2026-02-25,11:14:48,"what is your name?
+",fuzzy
+2026-02-25,11:15:56,tell me a joke,fallback
+2026-02-25,11:16:41,Can you write a poem about tech support?,fuzzy
+2026-02-25,11:16:43,Can you write a poem about tech support?,fuzzy
+2026-02-25,11:33:21,what is ur name?,fuzzy
+2026-02-25,11:33:30,tell me a joke,fallback
+2026-02-25,11:33:41, Do you offer free shipping?,exact
+2026-03-03,14:40:29,hi,greeting
+2026-03-03,14:40:43,i have a doubt,fallback
+2026-03-03,14:43:41,hi i have a doubt,fallback
+2026-03-03,14:49:38,hi i have a doubt ,fallback
+2026-03-03,14:50:30,i have a doubt,fallback
