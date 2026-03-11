@@ -1,6 +1,7 @@
 # ============================================================
 # Advanced FAQ Chatbot - Python + Streamlit
-# Features: Fuzzy Matching, Google Gemini NLP, Persistent Analytics
+# Features: Fuzzy Matching, Groq AI NLP, Persistent Analytics
+# Groq Version — Free, Fast, Powerful (Llama 3.3)
 # ============================================================
 
 import streamlit as st
@@ -10,12 +11,12 @@ from difflib import get_close_matches
 from datetime import datetime
 import os
 
-# Gemini import with error handling (new google-genai package)
+# Groq import with error handling
 try:
-    from google import genai
-    GEMINI_AVAILABLE = True
+    from groq import Groq
+    GROQ_AVAILABLE = True
 except ImportError:
-    GEMINI_AVAILABLE = False
+    GROQ_AVAILABLE = False
 
 # ------------------------------------------------------------
 # PAGE CONFIG
@@ -28,7 +29,7 @@ st.set_page_config(page_title="FAQ Chatbot", page_icon="🤖", layout="wide")
 ANALYTICS_FILE = "analytics.csv"
 
 # ------------------------------------------------------------
-# EXPANDED FAQ Knowledge Base
+# FAQ Knowledge Base
 # ------------------------------------------------------------
 faq = {
     "what are your working hours": "We are open Monday to Friday, 9:00 AM to 6:00 PM.",
@@ -60,6 +61,11 @@ faq = {
     "is my data safe with you": "Yes, we use industry-standard encryption to protect all your personal data.",
 }
 
+# Stop words to ignore during keyword matching
+STOP_WORDS = {"what", "is", "are", "the", "a", "an", "do", "does", "how", "can",
+              "i", "my", "your", "you", "me", "we", "us", "it", "in", "to", "of",
+              "for", "with", "this", "that", "there", "have", "has", "be", "been"}
+
 # ------------------------------------------------------------
 # Greetings
 # ------------------------------------------------------------
@@ -70,15 +76,21 @@ greetings = ["hi", "hello", "hey", "hii", "helo", "howdy", "good morning", "good
 # ------------------------------------------------------------
 def load_analytics():
     if os.path.exists(ANALYTICS_FILE):
-        return pd.read_csv(ANALYTICS_FILE).to_dict("records")
+        try:
+            return pd.read_csv(ANALYTICS_FILE).to_dict("records")
+        except Exception:
+            return []
     return []
 
 def save_analytics(record):
-    df_new = pd.DataFrame([record])
-    if os.path.exists(ANALYTICS_FILE):
-        df_new.to_csv(ANALYTICS_FILE, mode="a", header=False, index=False)
-    else:
-        df_new.to_csv(ANALYTICS_FILE, mode="w", header=True, index=False)
+    try:
+        df_new = pd.DataFrame([record])
+        if os.path.exists(ANALYTICS_FILE):
+            df_new.to_csv(ANALYTICS_FILE, mode="a", header=False, index=False)
+        else:
+            df_new.to_csv(ANALYTICS_FILE, mode="w", header=True, index=False)
+    except Exception as e:
+        st.warning(f"Could not save analytics: {e}")
 
 def clear_analytics():
     if os.path.exists(ANALYTICS_FILE):
@@ -91,44 +103,68 @@ def clean_input(text):
     return text.translate(str.maketrans("", "", string.punctuation)).strip().lower()
 
 # ------------------------------------------------------------
+# Helper: Extract meaningful keywords
+# ------------------------------------------------------------
+def get_keywords(text):
+    words = text.split()
+    return [w for w in words if w not in STOP_WORDS and len(w) > 2]
+
+# ------------------------------------------------------------
 # Helper: Fuzzy Match
 # ------------------------------------------------------------
 def fuzzy_match(normalized_input):
     faq_keys = list(faq.keys())
-    matches = get_close_matches(normalized_input, faq_keys, n=1, cutoff=0.5)
+    matches = get_close_matches(normalized_input, faq_keys, n=1, cutoff=0.55)
     if matches:
         return faq[matches[0]], "fuzzy"
     return None, None
 
 # ------------------------------------------------------------
-# Helper: Gemini NLP Response
+# Helper: Groq AI Response
+# Using llama-3.3-70b-versatile — latest active free model
 # ------------------------------------------------------------
-def gemini_response(user_input, api_key):
+def groq_response(user_input, api_key):
+    if not GROQ_AVAILABLE:
+        return None, None
     try:
-        from google import genai
-
-        client = genai.Client(api_key=api_key)
-
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=[
+        client = Groq(api_key=api_key)
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a helpful FAQ assistant for a company that offers web development, "
+                        "app development, and digital marketing services. "
+                        "Answer customer questions clearly and concisely in 2-3 sentences. "
+                        "Be professional and friendly."
+                    )
+                },
                 {
                     "role": "user",
-                    "parts": [{"text": user_input}]
+                    "content": user_input
                 }
-            ]
+            ],
+            model="llama-3.3-70b-versatile",  # ✅ Latest active Groq model
+            max_tokens=200,
+            temperature=0.7,
         )
-
-        return response.text, "gemini"
-
-    except Exception as e:
-        st.error(f"Gemini Error: {e}")
+        answer = chat_completion.choices[0].message.content.strip()
+        if answer:
+            return answer, "groq"
         return None, None
+    except Exception as e:
+        st.error(f"Groq Error: {e}")
+        return None, None
+
 # ------------------------------------------------------------
 # Main Response Function
 # ------------------------------------------------------------
 def get_response(user_input):
     normalized_input = clean_input(user_input)
+
+    # Guard: empty input
+    if not normalized_input:
+        return "Please type a question so I can help you! 😊", "fallback"
 
     # Step 1: Greetings
     if normalized_input in greetings:
@@ -138,23 +174,34 @@ def get_response(user_input):
     if normalized_input in faq:
         return faq[normalized_input], "exact"
 
-    # Step 3: Partial word match
-    input_words = normalized_input.split()
-    for question, answer in faq.items():
-        question_words = question.split()
-        if all(word in question_words for word in input_words) and len(input_words) >= 2:
-            return answer, "partial"
+    # Step 3: Strict keyword-based partial match (Jaccard similarity)
+    input_keywords = set(get_keywords(normalized_input))
+    if input_keywords:
+        best_score = 0
+        best_answer = None
+        for question, answer in faq.items():
+            question_keywords = set(get_keywords(question))
+            if not question_keywords:
+                continue
+            intersection = input_keywords & question_keywords
+            union = input_keywords | question_keywords
+            score = len(intersection) / len(union)
+            if score > best_score:
+                best_score = score
+                best_answer = answer
+        if best_score >= 0.4 and best_answer:
+            return best_answer, "partial"
 
     # Step 4: Fuzzy match
     answer, match_type = fuzzy_match(normalized_input)
     if answer:
         return answer, "fuzzy"
 
-    # Step 5: Gemini AI fallback
-    if st.session_state.get("gemini_key"):
-        answer, match_type = gemini_response(user_input, st.session_state.gemini_key)
+    # Step 5: Groq AI fallback
+    if st.session_state.get("groq_key"):
+        answer, match_type = groq_response(user_input, st.session_state.groq_key)
         if answer:
-            return answer, "gemini"
+            return answer, "groq"
 
     # Step 6: Final fallback
     return (
@@ -163,33 +210,34 @@ def get_response(user_input):
     ), "fallback"
 
 # ------------------------------------------------------------
-# Badge helper — FIXED INDENTATION
+# Badge helper
 # ------------------------------------------------------------
 def get_badge(match_type):
     return {
         "exact":    "🟢 Exact Match",
         "partial":  "🔵 Partial Match",
         "fuzzy":    "🟡 Fuzzy Match",
-        "gemini":   "🤖 Gemini AI Answer",
+        "groq":     "⚡ Groq AI Answer (Llama 3.3)",
         "greeting": "👋 Greeting",
         "fallback": "🔴 No Match Found"
     }.get(match_type, "")
 
 # ------------------------------------------------------------
-# Initialize session state — FIXED: moved outside function
+# Initialize session state
 # ------------------------------------------------------------
 if "messages" not in st.session_state:
-    st.session_state.messages = []
-    st.session_state.messages.append({
-        "role": "assistant",
-        "content": "Hello! 👋 I'm your smart FAQ assistant powered by AI. How can I help you today?"
-    })
+    st.session_state.messages = [
+        {
+            "role": "assistant",
+            "content": "Hello! 👋 I'm your smart FAQ assistant powered by Groq AI. How can I help you today?"
+        }
+    ]
 
-if "gemini_key" not in st.session_state:
-    st.session_state.gemini_key = ""
+if "groq_key" not in st.session_state:
+    st.session_state.groq_key = ""
 
 # ------------------------------------------------------------
-# UI LAYOUT - Two Tabs: Chat | Analytics
+# UI LAYOUT
 # ------------------------------------------------------------
 tab1, tab2 = st.tabs(["💬 Chat", "📊 Analytics"])
 
@@ -198,24 +246,23 @@ tab1, tab2 = st.tabs(["💬 Chat", "📊 Analytics"])
 # ========================
 with tab1:
     st.title("🤖 Smart FAQ Chatbot")
-    st.write("Ask me anything! I use AI to answer even questions not in the FAQ.")
+    st.write("Ask me anything! I use Groq AI (free & fast) to answer even questions not in the FAQ.")
 
-    # Gemini API Key Input
-    with st.expander("⚙️ Add Google Gemini API Key (for AI-powered answers)"):
-        if not GEMINI_AVAILABLE:
-            st.warning("⚠️ Gemini not installed. Run: `pip install google-genai`")
+    with st.expander("⚙️ Add Groq API Key (Free — for AI-powered answers)"):
+        if not GROQ_AVAILABLE:
+            st.warning("⚠️ Groq not installed. Run: `python -m pip install groq`")
         else:
+            st.info("🆓 Groq is completely FREE! Get your key at: https://console.groq.com")
             key_input = st.text_input(
-                "Paste your Gemini API Key here:",
+                "Paste your Groq API Key here:",
                 type="password",
-                placeholder="AIza..."
+                placeholder="gsk_..."
             )
             if key_input:
-                st.session_state.gemini_key = key_input
-                st.success("✅ Gemini API Key saved! AI will now answer unknown questions.")
-            st.caption("Get your free key at: https://aistudio.google.com/app/apikey")
+                st.session_state.groq_key = key_input
+                st.success("✅ Groq API Key saved! Llama 3.3 AI will now answer unknown questions.")
+            st.caption("Get your free key at: https://console.groq.com/keys")
 
-    # Sample Questions
     with st.expander("💡 Sample Questions (click to expand)"):
         cols = st.columns(2)
         for i, question in enumerate(faq.keys()):
@@ -223,7 +270,6 @@ with tab1:
 
     st.divider()
 
-    # Display chat history
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.write(message["content"])
@@ -232,7 +278,6 @@ with tab1:
                 if badge:
                     st.caption(badge)
 
-    # Chat Input
     user_input = st.chat_input("Type your question here...")
 
     if user_input:
@@ -282,7 +327,7 @@ with tab2:
         c1, c2, c3, c4, c5 = st.columns(5)
         c1.metric("Total Questions", total)
         c2.metric("🟢 FAQ Answered", counts.get("exact", 0) + counts.get("partial", 0) + counts.get("fuzzy", 0))
-        c3.metric("🤖 Gemini AI", counts.get("gemini", 0))
+        c3.metric("⚡ Groq AI", counts.get("groq", 0))
         c4.metric("👋 Greetings", counts.get("greeting", 0))
         c5.metric("❌ Not Answered", counts.get("fallback", 0))
 

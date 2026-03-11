@@ -21,3 +21,37 @@ date,time,question,match_type
 2026-03-03,14:43:41,hi i have a doubt,fallback
 2026-03-03,14:49:38,hi i have a doubt ,fallback
 2026-03-03,14:50:30,i have a doubt,fallback
+2026-03-11,10:10:27,hi,greeting
+2026-03-11,10:11:03,Hello! How can I help you?,partial
+2026-03-11,10:11:15,what is api ?,partial
+2026-03-11,10:18:43,hi,greeting
+2026-03-11,10:18:50,what is api?,fuzzy
+2026-03-11,10:24:39,hi',greeting
+2026-03-11,10:24:48,what is API??,fallback
+2026-03-11,10:30:27,hi,greeting
+2026-03-11,10:30:37,what is api??,fallback
+2026-03-11,10:44:00,what is api?,fallback
+2026-03-11,10:51:28,what is api??,groq
+2026-03-11,11:04:06,What is digital marketing?,groq
+2026-03-11,11:04:17,How does web development work?,groq
+2026-03-11,11:04:30,What is the difference between app and web development?,groq
+2026-03-11,11:07:56,What is an API?,fuzzy
+2026-03-11,11:08:00,What is the difference between app and web development?,groq
+2026-03-11,11:08:04,How does web development work?,groq
+2026-03-11,11:08:19,What is digital marketing?,groq
+2026-03-11,11:09:22,what is api?,groq
+2026-03-11,11:09:33,what is digital marketing ,groq
+2026-03-11,11:09:55,what is the difference between app development and web development ??,groq
+2026-03-11,11:11:21,what is SEO?,groq
+2026-03-11,11:14:09,How long does it take to build a website?,partial
+2026-03-11,11:14:37,How long does it take to build a website?',partial
+2026-03-11,11:15:25,What is an API?,fuzzy
+2026-03-11,11:15:28,How long does it take to build a website?,partial
+2026-03-11,11:17:35,what is api?,groq
+2026-03-11,11:17:41,What is the difference between app and web development?,groq
+2026-03-11,11:17:45,What is digital marketing?,groq
+2026-03-11,11:18:58,what is SEO?,groq
+2026-03-11,16:08:45,What is digital marketing?,groq
+2026-03-11,16:08:52,what is API?,groq
+2026-03-11,16:08:59,What is SEO?,groq
+2026-03-11,16:09:04,How does web development work?,groq
